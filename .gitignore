@@ -30,3 +30,6 @@ Thumbs.db
 # Ignore temporary files
 *.tmp
 *.swp
+
+# Ignore the data files which will be used for training 
+data/Human_faces_man:woman
