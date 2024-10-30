@@ -69,7 +69,7 @@ class WeightedBoxDiffusion(Aggregator):
                 avg_box = np.sum(overlapping_boxes, axis=0) / np.sum(overlapping_scores)
 
                 # Average score, optionally scaled by model agreement
-                avg_score = np.mean(overlapping_scores) * (len(group_indices) / len(predictions))
+                avg_score = np.mean(overlapping_scores) * (len(group_indices) / 2)
 
                 # Append aggregated results
                 final_boxes.append(avg_box)
