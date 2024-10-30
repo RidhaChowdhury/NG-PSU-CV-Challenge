@@ -19,7 +19,7 @@ import numpy as np
 class YoloModel(Model):
     def __init__(self):
         super().__init__()
-        model = YOLO('yolo11n.pt')
+        self.model = YOLO('yolo11n.pt')
 
     def detect(self, image_path: str, conf: float = 0.4):
         image = Image.open(image_path)
