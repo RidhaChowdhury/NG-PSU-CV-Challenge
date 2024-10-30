@@ -146,9 +146,9 @@ import numpy as np
 from tqdm import tqdm
 
 class RenderStep:
-    def __init__(self, class_names={0:"Class0"}, confidence_threshold=0.5):
+    def __init__(self, class_names={0: "Class0"}, confidence_threshold=0.5):
         """
-        Initializes the rendering step.
+        Initializes the rendering step with enhanced annotation options.
         
         Args:
             class_names (dict, optional): Dictionary mapping class indices to class names.
@@ -159,7 +159,7 @@ class RenderStep:
 
     def __call__(self, aggregated_output, state):
         """
-        Renders the aggregated bounding boxes, scores, and class labels on the image.
+        Renders the aggregated bounding boxes, scores, and class labels on the image with improved quality.
         
         Args:
             aggregated_output (dict): Aggregated bounding boxes, scores, and classes with image path.
@@ -178,23 +178,33 @@ class RenderStep:
             raise ValueError(f"Image not found at {image_path}")
         print("Image loaded successfully.")
 
+        # Set font scale and thickness based on image size for better visibility
+        height, width = image.shape[:2]
+        font_scale = max(0.5, min(width, height) / 1250)  # Scale text based on image size
+        box_thickness = max(2, min(width, height) // 300)  # Dynamic thickness for bounding boxes
+
         for i, box in tqdm(enumerate(boxes), total=len(boxes), desc="Processing bounding boxes"):
             score = scores[i]
 
+            # Draw bounding box
             x_min, y_min, x_max, y_max = map(int, box)
             cls = classes[i]
             color = (0, 255, 0)  # Green for bounding box
-            cv2.rectangle(image, (x_min, y_min), (x_max, y_max), color, 2)
+            cv2.rectangle(image, (x_min, y_min), (x_max, y_max), color, box_thickness, cv2.LINE_AA)
 
+            # Label with class name and confidence
             label = f"{self.class_names.get(cls, cls)}: {score:.2f}"
-            label_size, _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+            label_size, _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, 1)
             label_y = max(y_min, label_size[1] + 10)
 
-            cv2.rectangle(image, (x_min, y_min - label_size[1] - 10), (x_min + label_size[0], y_min), color, -1)
-            cv2.putText(image, label, (x_min, label_y - 7), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+            # Draw label background and text
+            cv2.rectangle(image, (x_min, y_min - label_size[1] - 10), 
+                          (x_min + label_size[0], y_min), color, -1, cv2.LINE_AA)
+            cv2.putText(image, label, (x_min, label_y - 7), 
+                        cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 255, 255), 2, cv2.LINE_AA)
 
         output_path = "aggregated_output.jpg"
-        cv2.imwrite(output_path, image)
+        cv2.imwrite(output_path, image, [int(cv2.IMWRITE_JPEG_QUALITY), 95])  # High-quality JPEG save
         print(f"Image saved to {output_path}")
         return output_path, state
 
