@@ -73,11 +73,14 @@ class ModelInferenceRenderStep:
             str: Path to the saved output image with rendered boxes.
         """
         image_path = state['image_path']
+        base_name = os.path.splitext(os.path.basename(image_path))[0]  # Get the base name without extension
+        output_dir = "data/outputted_images"
+
 
         for i, (boxes, scores, classes, model_name) in enumerate(model_outputs):
             # render the individual models output
             prediction = {"boxes": boxes, "scores": scores, "classes": classes}
-            output_path = f"{model_name}_{model_name}.jpg"
+            output_path = output_dir + '/' + base_name + '_' + model_name + '.jpg'
             output_image = RenderStep()(prediction, state)[0]
             print(output_image)
             
@@ -203,8 +206,11 @@ class RenderStep:
             cv2.putText(image, label, (x_min, label_y - 7), 
                         cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 255, 255), 2, cv2.LINE_AA)
 
-        output_path = "aggregated_output.jpg"
-        cv2.imwrite(output_path, image, [int(cv2.IMWRITE_JPEG_QUALITY), 95])  # High-quality JPEG save
+        # Generate output path based on input image name
+        output_dir = "data/outputted_images"
+        base_name = os.path.splitext(os.path.basename(image_path))[0]
+        output_path = output_dir + '/' + base_name + "_aggregated_image.jpg"
+        cv2.imwrite(output_path, image)
         print(f"Image saved to {output_path}")
         return output_path, state
 
