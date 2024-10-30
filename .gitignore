@@ -33,3 +33,5 @@ Thumbs.db
 
 # Ignore the data files which will be used for training 
 data/Human_faces_man:woman
+
+*.pt

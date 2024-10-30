@@ -16,7 +16,7 @@ class WeightedBoxDiffusion(Aggregator):
 
     def aggregate(self, predictions, iou_threshold=0.5):
         # Unpack the model outputs into lists of boxes, scores, and classes
-        boxes_list, scores_list, classes_list = zip(*predictions)
+        boxes_list, scores_list, classes_list, model_names = zip(*predictions)
 
         # Stack all boxes, concatenate all scores and classes
         all_boxes = np.vstack(boxes_list)

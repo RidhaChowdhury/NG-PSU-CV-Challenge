@@ -1,4 +1,5 @@
 import numpy as np
+import time
 
 class EnsemblePipeline:
     def __init__(self, pipeline_steps):
@@ -55,9 +56,37 @@ class ModelInferenceStep:
         model_outputs = []
         for model in self.models:
             model_output = model.detect(image_path)
-            model_outputs.append((model_output["boxes"], model_output["scores"], model_output["classes"]))
+            model_outputs.append((model_output["boxes"], model_output["scores"], model_output["classes"], model.__class__.__name__))
         return model_outputs, state
+    
 
+import os
+class ModelInferenceRenderStep:
+    def __call__(self, model_outputs, state):
+        """
+        Renders the aggregated bounding boxes, scores, and class labels on the image.
+        
+        Args:
+            aggregated_output (dict): Aggregated bounding boxes, scores, and classes with image path.
+        
+        Returns:
+            str: Path to the saved output image with rendered boxes.
+        """
+        image_path = state['image_path']
+
+        for i, (boxes, scores, classes, model_name) in enumerate(model_outputs):
+            # render the individual models output
+            prediction = {"boxes": boxes, "scores": scores, "classes": classes}
+            output_path = f"{model_name}_{model_name}.jpg"
+            output_image = RenderStep()(prediction, state)[0]
+            print(output_image)
+            
+            # rename the image output, overwrite if exists
+            if os.path.exists(output_path):
+                os.remove(output_path)
+            os.rename(output_image, output_path)
+            print(f"Image saved to {output_path}")
+        return model_outputs, state
 
 class AggregationStep:
     def __init__(self, aggregator):
@@ -117,7 +146,7 @@ import numpy as np
 from tqdm import tqdm
 
 class RenderStep:
-    def __init__(self, class_names=None, confidence_threshold=0.5):
+    def __init__(self, class_names={0:"Class0"}, confidence_threshold=0.5):
         """
         Initializes the rendering step.
         
@@ -151,8 +180,6 @@ class RenderStep:
 
         for i, box in tqdm(enumerate(boxes), total=len(boxes), desc="Processing bounding boxes"):
             score = scores[i]
-            if score < self.confidence_threshold:
-                continue
 
             x_min, y_min, x_max, y_max = map(int, box)
             cls = classes[i]
@@ -182,6 +209,7 @@ if __name__ == "__main__":
     
     # Define pipeline steps
     model_inference_step = ModelInferenceStep(models=[yolo_model, detr_model])
+    model_inference_render_step = ModelInferenceRenderStep()
     aggregation_step = AggregationStep(aggregator=aggregator)
     post_processing_step = PostProcessingStep()
     render_step = RenderStep(class_names={0: "person", 1: "car"})  # Example class mapping
@@ -189,12 +217,14 @@ if __name__ == "__main__":
     # Create the ensemble pipeline with the rendering step
     ensemble_pipeline = EnsemblePipeline([
         model_inference_step,
+        model_inference_render_step,
         aggregation_step,
-        # post_processing_step,
         render_step
     ])
 
     # Process a single image
-    image_path = './data/Images/image5.jpg'
+    image_path = './data/Images/image1.jpg'
     input_state = {'image_path': image_path}
+    start_time = time.time()
     output = ensemble_pipeline.process(image_path, input_state)
+    print(f"Processing time: {time.time() - start_time:.2f} seconds")
