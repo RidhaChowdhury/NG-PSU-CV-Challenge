@@ -251,9 +251,16 @@ def run_ensemble(models, folder):
         render_step
     ])
 
-    # Process a single image
-    for image_path in os.listdir(folder):
-        input_state = {'image_path': os.path.join("./data/uploaded_images/", image_path)}
-        start_time = time.time()
-        output = ensemble_pipeline.process(input_state["image_path"], input_state)
-        print(f"Processing time: {time.time() - start_time:.2f} seconds")
+    # Define acceptable image extensions
+    valid_extensions = (".jpg", ".jpeg", ".png")
+    
+    # Process each image in the folder
+    for image_name in os.listdir(folder):
+        if image_name.lower().endswith(valid_extensions):
+            image_path = os.path.join(folder, image_name)
+            input_state = {'image_path': image_path}
+            start_time = time.time()
+            output = ensemble_pipeline.process(input_state["image_path"], input_state)
+            print(f"Processed {image_name} in {time.time() - start_time:.2f} seconds")
+        else:
+            print(f"Skipping non-image file: {image_name}")
