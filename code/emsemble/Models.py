@@ -26,13 +26,21 @@ class YoloModel(Model):
         result = self.model.predict(image, conf=0.4)[0]
 
         # transform output
+        '''
         boxes = result.boxes.xyxy.cpu().numpy()  # Bounding boxes
         scores = result.boxes.conf.cpu().numpy()  # Confidence scores
         classes = result.boxes.cls.cpu().numpy()  # Class predictions
+        '''
 
+        boxes = result.boxes.xyxy.detach().cpu().numpy()  # Bounding boxes detached 
+        scores = result.boxes.conf.detach().cpu().numpy()  # Confidence scores detached 
+        classes = result.boxes.cls.detach().cpu().numpy().astype(int)  # Class predictions detached 
+
+        '''
         boxes = np.array(boxes)  # No conversion needed
         scores = np.array(scores)
         classes = np.array(classes, dtype=int)
+        '''
 
         return {
             "boxes": boxes,
@@ -112,9 +120,15 @@ class DetrModel(Model):
         # convert boxes from [0; 1] to image scales
         bboxes_scaled = self.rescale_bboxes(outputs['pred_boxes'][0, keep], im.size)
 
+        '''
         detr_boxes = bboxes_scaled
         detr_scores = probas[keep].max(-1).values
         detr_classes = probas[keep].argmax(-1)
+        '''
+
+        detr_boxes = bboxes_scaled.detach().cpu().numpy()
+        detr_scores = probas[keep].max(-1).values.detach().cpu().numpy()
+        detr_classes = probas[keep].argmax(-1).detach().cpu().numpy().astype(int)
 
         boxes = detr_boxes.cpu().numpy() if isinstance(detr_boxes, torch.Tensor) else np.array(detr_boxes)
         scores = detr_scores.cpu().numpy() if isinstance(detr_scores, torch.Tensor) else np.array(detr_scores)

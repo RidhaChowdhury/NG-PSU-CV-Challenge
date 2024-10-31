@@ -1,6 +1,7 @@
 import numpy as np
 import time
 
+
 class EnsemblePipeline:
     def __init__(self, pipeline_steps):
         """
@@ -33,6 +34,13 @@ class EnsemblePipeline:
         return data, state
 
 
+#concurrent reqs
+from concurrent.futures import ThreadPoolExecutor, as_completed
+# limit executor to 4 workers as my local machine uses 4 cores
+executor = ThreadPoolExecutor(max_workers=4)
+# better IO ops to avoid cocurrency bugs
+import shutil
+
 class ModelInferenceStep:
     def __init__(self, models):
         """
@@ -54,9 +62,31 @@ class ModelInferenceStep:
             list: List of model outputs in the format (boxes, scores, classes).
         """
         model_outputs = []
+
+        # run each model detection independently
+        def run_independently_inference(model):
+            model_output = model.detect(image_path)
+            # output tuple format
+            return (model_output["boxes"], model_output["scores"], model_output["classes"], model.__class__.__name__)
+
+
+        '''
+        Single threaded 
         for model in self.models:
             model_output = model.detect(image_path)
             model_outputs.append((model_output["boxes"], model_output["scores"], model_output["classes"], model.__class__.__name__))
+        return model_outputs, state
+        '''
+        
+        # multithreaded  
+        with ThreadPoolExecutor() as executor:
+            # run a thread for each model seperately
+            completed_threads = [executor.submit(run_independently_inference, model) for model in self.models]
+            # get the results as and when they are completed
+            for completed_threads in as_completed(completed_threads):
+                model_outputs.append(completed_threads.result())
+        
+        
         return model_outputs, state
     
 
@@ -76,7 +106,24 @@ class ModelInferenceRenderStep:
         base_name = os.path.splitext(os.path.basename(image_path))[0]  # Get the base name without extension
         output_dir = "data/outputted_images"
 
+        from threading import Lock
+        file_lock = Lock()
 
+        def rm_output(boxes, scores, classes, model_name):
+            # lock the file here 
+            with file_lock:
+                prediction = {"boxes": boxes, "scores": scores, "classes": classes}
+                output_path = f"{output_dir}/{base_name}_{model_name}.jpg"
+                output_image = RenderStep()(prediction, state)[0]
+
+                # Use shutil.move() for reliable file renaming
+                if os.path.exists(output_path):
+                    os.remove(output_path)
+                shutil.move(output_image, output_path)
+                print(f"Image saved to {output_path}")
+            return output_path
+
+        '''
         for i, (boxes, scores, classes, model_name) in enumerate(model_outputs):
             # render the individual models output
             prediction = {"boxes": boxes, "scores": scores, "classes": classes}
@@ -89,6 +136,17 @@ class ModelInferenceRenderStep:
                 os.remove(output_path)
             os.rename(output_image, output_path)
             print(f"Image saved to {output_path}")
+        return model_outputs, state
+        '''
+
+        # multithreaded segment 
+        with ThreadPoolExecutor() as executor:
+            # run rm_output for each output in the model_outputs
+            compelted_threads = [executor.submit(rm_output, *output) for output in model_outputs]
+            # get the results as and when they are completed
+            for i in as_completed(compelted_threads):
+                i.result()
+
         return model_outputs, state
 
 class AggregationStep:
@@ -239,8 +297,27 @@ if __name__ == "__main__":
     ])
 
     # Process a single image
+    '''
     image_path = './data/Images/image1.jpg'
     input_state = {'image_path': image_path}
     start_time = time.time()
     output = ensemble_pipeline.process(image_path, input_state)
     print(f"Processing time: {time.time() - start_time:.2f} seconds")
+    '''
+
+    # run all files 
+
+    image_directory = './data/Images/'
+    # create the array of images
+    image_filenames = [f"image{i}.jpg" for i in range(1, 21)]  
+    start_time = time.time()
+
+    for image_filename in image_filenames:
+        image_path = image_directory + image_filename
+        input_state = {'image_path': image_path}
+        
+        # get output for each image
+        output = ensemble_pipeline.process(image_path, input_state)
+        print(f"Processed {image_filename} successfully")
+
+    print(f"Total processing time for all images: {time.time() - start_time:.2f} seconds")
