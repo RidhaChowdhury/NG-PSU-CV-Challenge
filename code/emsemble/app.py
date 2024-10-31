@@ -24,7 +24,7 @@ st.title("Ensemble Model Selection and Aggregation")
 st.header("Select Models")
 selected_models = {
     "YoloModel": st.checkbox("YOLO"),
-    "F-RCNN": st.checkbox("F-RCNN"),
+    "FasterRCNNModel": st.checkbox("F-RCNN"),
     "DetrModel": st.checkbox("DETR")
 }
 
