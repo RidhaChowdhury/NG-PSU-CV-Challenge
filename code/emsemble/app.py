@@ -24,15 +24,14 @@ st.title("Ensemble Model Selection and Aggregation")
 st.header("Select Models")
 selected_models = {
     "YoloModel": st.checkbox("YOLO"),
-    "FasterRCNNModel": st.checkbox("F-RCNN"),
-    "DetrModel": st.checkbox("DETR")
+    "DetrModel": st.checkbox("DETR"),
 }
 
 # Step 2: Choose Aggregation Method
 st.header("Select Aggregation Method")
 aggregation_method = st.selectbox(
     "Choose an aggregation method",
-    ["NMS (Non-Maximum Suppression)", "WBF (Weighted Box Fusion)", "IOV (Intersection over Union)"]
+    ["WBF (Weighted Box Fusion)"]
 )
 
 # Step 3: Image Upload
@@ -47,8 +46,8 @@ if st.button("Run"):
     selected_model_list = [model for model, checked in selected_models.items() if checked]
     
     # Check if at least one model is selected
-    if not selected_model_list:
-        st.error("Please select at least one model for analysis.")
+    if len(selected_model_list) < 2:
+        st.error("Please select at least two models for analysis.")
     
     # Check if images are uploaded
     elif not uploaded_images:
@@ -81,9 +80,9 @@ if st.button("Run"):
 
         for i, image in enumerate(uploaded_images):
             # Create a dynamic column layout based on the number of models selected
-            num_columns = len(selected_model_list) + 2  # Original + models + aggregated result
-            if num_columns == 3:
-                num_columns -= 1
+            num_columns = len(selected_model_list) + 1  # Original + models + aggregated result
+            # if num_columns == 3:
+            #     num_columns -= 1
             columns = st.columns(num_columns)
             
             # Original image in the first column
@@ -92,15 +91,14 @@ if st.button("Run"):
             
             image_name_without_extension = os.path.splitext(image.name)[0]
 
-            # Placeholder for each model's result in subsequent columns
-            for idx, model_name in enumerate(selected_model_list):
-                with columns[idx + 1]:
-                    st.image('./data/outputted_images/' + image_name_without_extension + '_' + model_name + '.jpg', caption=f"{model_name} Result (placeholder)")
+            # # Placeholder for each model's result in subsequent columns
+            # for idx, model_name in enumerate(selected_model_list):
+            #     with columns[idx + 1]:
+            #         st.image('./data/outputted_images/' + image_name_without_extension + '_' + model_name + '.jpg', caption=f"{model_name} Result (placeholder)")
 
-            if num_columns > 2:
-                # Placeholder for aggregated result in the last column
-                with columns[-1]:
-                    st.image('./data/outputted_images/' + image_name_without_extension + '_aggregated_image.jpg', caption="Aggregated Result (placeholder)")
+            # Placeholder for aggregated result in the last column
+            with columns[-1]:
+                st.image('./data/outputted_images/' + image_name_without_extension + '_aggregated_image.jpg', caption="Aggregated Result (placeholder)")
             
             # Update the progress bar
             progress = int((i + 1) / len(uploaded_images) * 100)
@@ -110,8 +108,5 @@ if st.button("Run"):
     status_text.text("Done! All images processed 🎉")
     st.success("Processing complete!")
     
-    # Display Selected Options (for debugging/checking the UI)
-    st.write("Selected Models:", type(selected_model_list))
-    st.write("Aggregation Method:", aggregation_method)
 
 # Run Streamlit with: python -m streamlit run app.py
