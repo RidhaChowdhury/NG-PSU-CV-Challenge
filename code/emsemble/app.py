@@ -109,9 +109,5 @@ if st.button("Run"):
     # Final success message
     status_text.text("Done! All images processed 🎉")
     st.success("Processing complete!")
-    
-    # Display Selected Options (for debugging/checking the UI)
-    st.write("Selected Models:", type(selected_model_list))
-    st.write("Aggregation Method:", aggregation_method)
 
 # Run Streamlit with: python -m streamlit run app.py
