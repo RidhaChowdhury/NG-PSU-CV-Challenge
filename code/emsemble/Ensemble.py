@@ -221,7 +221,7 @@ def run_ensemble(models, folder):
 
     model_dict = {
     "YoloModel": YoloModel,
-    "F-RCNN": "FrcnnModel",
+    "FasterRCNNModel": "FrcnnModel",
     "DetrModel": DetrModel
     }
     
