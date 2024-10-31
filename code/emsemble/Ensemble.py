@@ -61,34 +61,53 @@ class ModelInferenceStep:
     
 
 import os
+import os
+
 class ModelInferenceRenderStep:
+    def __init__(self, render_step, model_instances):
+        """
+        Initialize with a render step and model instances.
+
+        Args:
+            render_step (callable): The render function to render each model's output.
+            model_instances (dict): Dictionary mapping model names to model instances.
+        """
+        self.render_step = render_step
+        self.model_instances = model_instances
+
     def __call__(self, model_outputs, state):
         """
-        Renders the aggregated bounding boxes, scores, and class labels on the image.
-        
+        Renders each model's bounding boxes, scores, and class labels on the image.
+
         Args:
-            aggregated_output (dict): Aggregated bounding boxes, scores, and classes with image path.
-        
+            model_outputs (list of tuples): List of (boxes, scores, classes, model_name) for each model.
+            state (dict): State containing the image path.
+
         Returns:
-            str: Path to the saved output image with rendered boxes.
+            tuple: Model outputs and state.
         """
         image_path = state['image_path']
-        base_name = os.path.splitext(os.path.basename(image_path))[0]  # Get the base name without extension
+        base_name = os.path.splitext(os.path.basename(image_path))[0]
         output_dir = "data/outputted_images"
 
-
-        for i, (boxes, scores, classes, model_name) in enumerate(model_outputs):
-            # render the individual models output
+        for boxes, scores, classes, model_name in model_outputs:
+            # Prepare the model-specific prediction dictionary
             prediction = {"boxes": boxes, "scores": scores, "classes": classes}
-            output_path = output_dir + '/' + base_name + '_' + model_name + '.jpg'
-            output_image = RenderStep()(prediction, state)[0]
-            print(output_image)
-            
-            # rename the image output, overwrite if exists
+
+            # Set the current model's class names in the render_step
+            model_instance = self.model_instances[model_name]
+            self.render_step.class_names = model_instance.names  # Use the model's .names attribute
+
+            # Render the image and get the output path
+            output_image = self.render_step(prediction, state)[0]
+            output_path = os.path.join(output_dir, f"{base_name}_{model_name}.jpg")
+
+            # Remove existing file if necessary and rename the output image
             if os.path.exists(output_path):
                 os.remove(output_path)
             os.rename(output_image, output_path)
             print(f"Image saved to {output_path}")
+
         return model_outputs, state
 
 class AggregationStep:
@@ -149,111 +168,140 @@ import numpy as np
 from tqdm import tqdm
 
 class RenderStep:
-    def __init__(self, class_names={0: "Class0"}, confidence_threshold=0.5):
+    def __init__(self, model_instances, confidence_threshold=0.0):
         """
-        Initializes the rendering step with enhanced annotation options.
+        Initialize with model instances to access class dictionaries.
         
         Args:
-            class_names (dict, optional): Dictionary mapping class indices to class names.
+            model_instances (dict): A dictionary mapping model names to model instances.
             confidence_threshold (float): Minimum confidence score to display a box.
         """
-        self.class_names = class_names
+        self.model_instances = model_instances
         self.confidence_threshold = confidence_threshold
 
     def __call__(self, aggregated_output, state):
-        """
-        Renders the aggregated bounding boxes, scores, and class labels on the image with improved quality.
-        
-        Args:
-            aggregated_output (dict): Aggregated bounding boxes, scores, and classes with image path.
-        
-        Returns:
-            str: Path to the saved output image with rendered boxes.
-        """
         image_path = state['image_path']
         boxes = aggregated_output["boxes"]
         scores = aggregated_output["scores"]
         classes = aggregated_output["classes"]
 
-        print("Loading image...")
         image = cv2.imread(image_path)
         if image is None:
             raise ValueError(f"Image not found at {image_path}")
-        print("Image loaded successfully.")
 
-        # Set font scale and thickness based on image size for better visibility
         height, width = image.shape[:2]
-        font_scale = max(0.5, min(width, height) / 1250)  # Scale text based on image size
-        box_thickness = max(2, min(width, height) // 300)  # Dynamic thickness for bounding boxes
+        font_scale = max(0.5, min(width, height) / 1250)
+        box_thickness = max(2, min(width, height) // 300)
 
-        for i, box in tqdm(enumerate(boxes), total=len(boxes), desc="Processing bounding boxes"):
+        for i, box in enumerate(boxes):
             score = scores[i]
+            if score < self.confidence_threshold:
+                continue
 
-            # Draw bounding box
             x_min, y_min, x_max, y_max = map(int, box)
-            cls = classes[i]
-            color = (0, 255, 0)  # Green for bounding box
+            cls, model_name = classes[i]  # Unpack to get class_id and model_name
+            model_instance = self.model_instances[model_name]
+            class_label = model_instance.names[cls]
+
+            color = (0, 255, 0)
             cv2.rectangle(image, (x_min, y_min), (x_max, y_max), color, box_thickness, cv2.LINE_AA)
 
-            # Label with class name and confidence
-            label = f"{self.class_names.get(cls, cls)}: {score:.2f}"
+            label = f"{class_label}: {score:.2f}"
             label_size, _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, 1)
             label_y = max(y_min, label_size[1] + 10)
 
-            # Draw label background and text
             cv2.rectangle(image, (x_min, y_min - label_size[1] - 10), 
                           (x_min + label_size[0], y_min), color, -1, cv2.LINE_AA)
             cv2.putText(image, label, (x_min, label_y - 7), 
                         cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 255, 255), 2, cv2.LINE_AA)
 
-        # Generate output path based on input image name
         output_dir = "./data/outputted_images"
         base_name = os.path.splitext(os.path.basename(image_path))[0]
-        output_path = output_dir + '/' + base_name + "_aggregated_image.jpg"
+        output_path = os.path.join(output_dir, f"{base_name}_aggregated_image.jpg")
         cv2.imwrite(output_path, image)
-        print(f"Image saved to {output_path}")
         return output_path, state
+
 
 from Models import YoloModel, DetrModel
 from Aggregators import WeightedBoxDiffusion
 
 def run_ensemble(models, folder):
-
     model_dict = {
-    "YoloModel": YoloModel,
+    "YoloModel": YoloModel(),
     "FasterRCNNModel": "FrcnnModel",
-    "DetrModel": DetrModel
+    "DetrModel": DetrModel()
     }
     
     # Instantiate models based on input
     instantiated_models = []
-    for model_name in models:
+    for model_name in ["YoloModel", "DetrModel"]:
         if model_name in model_dict:
             model_class = model_dict[model_name]
-            instantiated_models.append(model_class())
+            instantiated_models.append(model_class)
         else:
             print(f"Model {model_name} not recognized.")
 
     aggregator = WeightedBoxDiffusion()
-    
+
     # Define pipeline steps
+    render_step = RenderStep(model_instances=model_dict)  # Example class mapping
     model_inference_step = ModelInferenceStep(instantiated_models)
-    model_inference_render_step = ModelInferenceRenderStep()
+    # model_inference_render_step = ModelInferenceRenderStep(model_instances=model_dict, render_step=render_step)
     aggregation_step = AggregationStep(aggregator=aggregator)
-    post_processing_step = PostProcessingStep()
-    render_step = RenderStep(class_names={0: "person", 1: "car"})  # Example class mapping
+    post_processing_step = PostProcessingStep() 
 
     # Create the ensemble pipeline with the rendering step
     ensemble_pipeline = EnsemblePipeline([
         model_inference_step,
-        model_inference_render_step,
+        # model_inference_render_step,
         aggregation_step,
         render_step
     ])
 
     # Process a single image
     for image_path in os.listdir(folder):
-        input_state = {'image_path': os.path.join("./data/uploaded_images/", image_path)}
+        input_state = {'image_path': os.path.join(folder, image_path)}
         start_time = time.time()
         output = ensemble_pipeline.process(input_state["image_path"], input_state)
         print(f"Processing time: {time.time() - start_time:.2f} seconds")
+
+
+if __name__ == "__main__":
+    # model_dict = {
+    # "YoloModel": YoloModel(),
+    # "FasterRCNNModel": "FrcnnModel",
+    # "DetrModel": DetrModel()
+    # }
+    
+    # # Instantiate models based on input
+    # instantiated_models = []
+    # for model_name in ["YoloModel", "DetrModel"]:
+    #     if model_name in model_dict:
+    #         model_class = model_dict[model_name]
+    #         instantiated_models.append(model_class)
+    #     else:
+    #         print(f"Model {model_name} not recognized.")
+
+    # aggregator = WeightedBoxDiffusion()
+
+    # # Define pipeline steps
+    # render_step = RenderStep(model_instances=model_dict)  # Example class mapping
+    # model_inference_step = ModelInferenceStep(instantiated_models)
+    # # model_inference_render_step = ModelInferenceRenderStep(model_instances=model_dict, render_step=render_step)
+    # aggregation_step = AggregationStep(aggregator=aggregator)
+    # post_processing_step = PostProcessingStep() 
+
+    # # Create the ensemble pipeline with the rendering step
+    # ensemble_pipeline = EnsemblePipeline([
+    #     model_inference_step,
+    #     # model_inference_render_step,
+    #     aggregation_step,
+    #     render_step
+    # ])
+
+    # # Process a single image
+    # image_path = "./data/Images/image2.jpg"
+    # input_state = {'image_path': image_path}
+    # output = ensemble_pipeline.process(input_state["image_path"], input_state)
+
+    run_ensemble(models=["YoloModel", "DetrModel"], folder="./data/Images")

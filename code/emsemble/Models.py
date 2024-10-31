@@ -19,7 +19,8 @@ import numpy as np
 class YoloModel(Model):
     def __init__(self):
         super().__init__()
-        self.model = YOLO('yolo11n.pt')
+        self.model = YOLO('yolo11m.pt')
+        self.names = {0: 'person', 1: 'bicycle', 2: 'car', 3: 'motorcycle', 4: 'airplane', 5: 'bus', 6: 'train', 7: 'truck', 8: 'boat', 9: 'traffic light', 10: 'fire hydrant', 11: 'stop sign', 12: 'parking meter', 13: 'bench', 14: 'bird', 15: 'cat', 16: 'dog', 17: 'horse', 18: 'sheep', 19: 'cow', 20: 'elephant', 21: 'bear', 22: 'zebra', 23: 'giraffe', 24: 'backpack', 25: 'umbrella', 26: 'handbag', 27: 'tie', 28: 'suitcase', 29: 'frisbee', 30: 'skis', 31: 'snowboard', 32: 'sports ball', 33: 'kite', 34: 'baseball bat', 35: 'baseball glove', 36: 'skateboard', 37: 'surfboard', 38: 'tennis racket', 39: 'bottle', 40: 'wine glass', 41: 'cup', 42: 'fork', 43: 'knife', 44: 'spoon', 45: 'bowl', 46: 'banana', 47: 'apple', 48: 'sandwich', 49: 'orange', 50: 'broccoli', 51: 'carrot', 52: 'hot dog', 53: 'pizza', 54: 'donut', 55: 'cake', 56: 'chair', 57: 'couch', 58: 'potted plant', 59: 'bed', 60: 'dining table', 61: 'toilet', 62: 'tv', 63: 'laptop', 64: 'mouse', 65: 'remote', 66: 'keyboard', 67: 'cell phone', 68: 'microwave', 69: 'oven', 70: 'toaster', 71: 'sink', 72: 'refrigerator', 73: 'book', 74: 'clock', 75: 'vase', 76: 'scissors', 77: 'teddy bear', 78: 'hair drier', 79: 'toothbrush'}
 
     def detect(self, image_path: str, conf: float = 0.4):
         image = Image.open(image_path)
@@ -58,22 +59,7 @@ class DetrModel(Model):
         super().__init__()
         self.model = torch.hub.load('facebookresearch/detr', 'detr_resnet50', pretrained=True)
         torch.set_grad_enabled(False)
-        self.CLASSES = [
-            'N/A', 'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus',
-            'train', 'truck', 'boat', 'traffic light', 'fire hydrant', 'N/A',
-            'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse',
-            'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'N/A', 'backpack',
-            'umbrella', 'N/A', 'N/A', 'handbag', 'tie', 'suitcase', 'frisbee', 'skis',
-            'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove',
-            'skateboard', 'surfboard', 'tennis racket', 'bottle', 'N/A', 'wine glass',
-            'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple', 'sandwich',
-            'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake',
-            'chair', 'couch', 'potted plant', 'bed', 'N/A', 'dining table', 'N/A',
-            'N/A', 'toilet', 'N/A', 'tv', 'laptop', 'mouse', 'remote', 'keyboard',
-            'cell phone', 'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'N/A',
-            'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier',
-            'toothbrush'
-        ]
+        self.names = ['N/A', 'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus','stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse','train', 'truck', 'boat', 'traffic light', 'fire hydrant', 'N/A','sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'N/A', 'backpack','umbrella', 'N/A', 'N/A', 'handbag', 'tie', 'suitcase', 'frisbee', 'skis','snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove','skateboard', 'surfboard', 'tennis racket', 'bottle', 'N/A', 'wine glass','orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake','cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple', 'sandwich','chair', 'couch', 'potted plant', 'bed', 'N/A', 'dining table', 'N/A','N/A', 'toilet', 'N/A', 'tv', 'laptop', 'mouse', 'remote', 'keyboard','cell phone', 'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'N/A','book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier','toothbrush']
 
         self.COLORS = [[0.000, 0.447, 0.741], [0.850, 0.325, 0.098], [0.929, 0.694, 0.125],
                 [0.494, 0.184, 0.556], [0.466, 0.674, 0.188], [0.301, 0.745, 0.933]]
