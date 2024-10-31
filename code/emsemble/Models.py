@@ -19,11 +19,11 @@ import numpy as np
 class YoloModel(Model):
     def __init__(self):
         super().__init__()
-        self.model = YOLO('yolo11n.pt')
+        self.model = YOLO('yolo11m.pt')
 
     def detect(self, image_path: str, conf: float = 0.4):
         image = Image.open(image_path)
-        result = self.model.predict(image, conf=0.4)[0]
+        result = self.model.predict(image, conf=conf)[0]
 
         # transform output
         boxes = result.boxes.xyxy.cpu().numpy()  # Bounding boxes
@@ -97,7 +97,7 @@ class DetrModel(Model):
         b = b * torch.tensor([img_w, img_h, img_w, img_h], dtype=torch.float32)
         return b
 
-    def detect(self, image_path: str, conf: float = 0.4):
+    def detect(self, image_path: str, conf: float = 0.85):
         im = Image.open(image_path)
         # mean-std normalize the input image (batch-size: 1)
         img = self.transform(im).unsqueeze(0)
@@ -107,7 +107,7 @@ class DetrModel(Model):
 
         # keep only predictions with 0.7+ confidence
         probas = outputs['pred_logits'].softmax(-1)[0, :, :-1]
-        keep = probas.max(-1).values > 0.85
+        keep = probas.max(-1).values > conf
 
         # convert boxes from [0; 1] to image scales
         bboxes_scaled = self.rescale_bboxes(outputs['pred_boxes'][0, keep], im.size)
@@ -126,3 +126,48 @@ class DetrModel(Model):
             "classes": classes
         }
         return output
+    
+
+
+import torch
+from detectron2.engine import DefaultPredictor
+from detectron2.config import get_cfg
+from detectron2 import model_zoo
+import cv2
+import numpy as np
+
+class FasterRCNNModel(Model):
+    def __init__(self):
+        super().__init__()
+        
+        # Set up the configuration and load the pre-trained Faster R-CNN model
+        self.cfg = get_cfg()
+        self.cfg.merge_from_file(model_zoo.get_config_file("COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml"))
+        self.cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml")
+        
+        # Set threshold and device
+        self.cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.65  # Confidence threshold
+        self.cfg.MODEL.DEVICE = "cuda" if torch.cuda.is_available() else "cpu"  # GPU if available
+        
+        # Initialize the predictor
+        self.predictor = DefaultPredictor(self.cfg)
+
+    def detect(self, image_path: str, conf: float = 0.65):
+         # Load and prepare the image
+        image = cv2.imread(image_path)
+        
+        # Perform inference
+        outputs = self.predictor(image)
+        instances = outputs["instances"].to("cpu")
+        
+        # Extract bounding boxes, scores, and class labels
+        boxes = instances.pred_boxes.tensor.numpy() if instances.has("pred_boxes") else np.array([])
+        scores = instances.scores.numpy() if instances.has("scores") else np.array([])
+        classes = instances.pred_classes.numpy() if instances.has("pred_classes") else np.array([])
+        
+        return {
+            "boxes": boxes,    # Bounding boxes
+            "scores": scores,  # Confidence scores
+            "classes": classes, # Class labels
+        }
+
