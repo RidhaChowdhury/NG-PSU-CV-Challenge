@@ -35,3 +35,11 @@ Thumbs.db
 data/Human_faces_man:woman
 
 *.pt
+
+# Ignore all files in these directories
+data/uploaded_images/*
+data/outputted_images/*
+
+# But keep the .gitkeep file in each directory
+!data/uploaded_images/.gitkeep
+!data/outputted_images/.gitkeep
