@@ -207,7 +207,7 @@ class RenderStep:
                         cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 255, 255), 2, cv2.LINE_AA)
 
         # Generate output path based on input image name
-        output_dir = "data/outputted_images"
+        output_dir = "./data/outputted_images"
         base_name = os.path.splitext(os.path.basename(image_path))[0]
         output_path = output_dir + '/' + base_name + "_aggregated_image.jpg"
         cv2.imwrite(output_path, image)
@@ -217,14 +217,27 @@ class RenderStep:
 from Models import YoloModel, DetrModel
 from Aggregators import WeightedBoxDiffusion
 
-if __name__ == "__main__":
-    # Instantiate models and aggregator
-    yolo_model = YoloModel()
-    detr_model = DetrModel()
+def run_ensemble(models, folder):
+
+    model_dict = {
+    "YoloModel": YoloModel,
+    "F-RCNN": "FrcnnModel",
+    "DetrModel": DetrModel
+    }
+    
+    # Instantiate models based on input
+    instantiated_models = []
+    for model_name in models:
+        if model_name in model_dict:
+            model_class = model_dict[model_name]
+            instantiated_models.append(model_class())
+        else:
+            print(f"Model {model_name} not recognized.")
+
     aggregator = WeightedBoxDiffusion()
     
     # Define pipeline steps
-    model_inference_step = ModelInferenceStep(models=[yolo_model, detr_model])
+    model_inference_step = ModelInferenceStep(instantiated_models)
     model_inference_render_step = ModelInferenceRenderStep()
     aggregation_step = AggregationStep(aggregator=aggregator)
     post_processing_step = PostProcessingStep()
@@ -239,8 +252,8 @@ if __name__ == "__main__":
     ])
 
     # Process a single image
-    image_path = './data/Images/image1.jpg'
-    input_state = {'image_path': image_path}
-    start_time = time.time()
-    output = ensemble_pipeline.process(image_path, input_state)
-    print(f"Processing time: {time.time() - start_time:.2f} seconds")
+    for image_path in os.listdir(folder):
+        input_state = {'image_path': os.path.join("./data/uploaded_images/", image_path)}
+        start_time = time.time()
+        output = ensemble_pipeline.process(input_state["image_path"], input_state)
+        print(f"Processing time: {time.time() - start_time:.2f} seconds")
