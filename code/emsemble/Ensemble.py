@@ -74,7 +74,7 @@ class ModelInferenceRenderStep:
         """
         image_path = state['image_path']
         base_name = os.path.splitext(os.path.basename(image_path))[0]  # Get the base name without extension
-        output_dir = "./data/outputted_images"
+        output_dir = "data/outputted_images"
 
 
         for i, (boxes, scores, classes, model_name) in enumerate(model_outputs):
@@ -253,7 +253,7 @@ def run_ensemble(models, folder):
 
     # Process a single image
     for image_path in os.listdir(folder):
-        input_state = {'image_path': os.path.join("./data/Images/", image_path)}
+        input_state = {'image_path': os.path.join("./data/uploaded_images/", image_path)}
         start_time = time.time()
         output = ensemble_pipeline.process(input_state["image_path"], input_state)
         print(f"Processing time: {time.time() - start_time:.2f} seconds")
